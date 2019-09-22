@@ -135,7 +135,9 @@ func (t *TableView) Run() {
 			for _, c := range t.commands {
 				if event.Rune() == c.ch {
 					row, _ := t.table.GetSelection()
-					c.action(row)
+					app.Suspend(func() {
+						c.action(row)
+					})
 				}
 			}
 		}
@@ -145,7 +147,7 @@ func (t *TableView) Run() {
 	text.SetDynamicColors(true)
 	innerText := " [yellow]q:quit   /:search   n:next"
 	for _, c := range t.commands {
-		innerText = fmt.Sprintf("%s   %c:%s", text, c.ch, c.text)
+		innerText = fmt.Sprintf("%s   %c:%s", innerText, c.ch, c.text)
 	}
 	text.SetText(innerText)
 	flex.SetBackgroundColor(tcell.ColorRed)

@@ -52,6 +52,7 @@ func (t *TableView) NewColumn() {
 }
 
 func (t *TableView) NewCommand(ch rune, text string, action func(row int)) {
+	t.commands = append(t.commands, tableViewCommand{ch, text, action})
 }
 
 func (t *TableView) DelRow() {

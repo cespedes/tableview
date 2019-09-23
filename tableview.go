@@ -8,20 +8,6 @@ import (
 	"github.com/rivo/tview"
 )
 
-func tviewFillTable(table *tview.Table, columns []string, data [][]string) {
-	for i := 0; i < len(columns); i++ {
-		cell := tview.NewTableCell("[yellow]" + columns[i]).SetBackgroundColor(tcell.ColorBlue)
-		cell.SetSelectable(false)
-		table.SetCell(0, i, cell)
-		for j := 0; j < len(data); j++ {
-			content := data[j][i]
-			cell := tview.NewTableCell(content)
-			cell.SetMaxWidth(32)
-			table.SetCell(j+1, i, cell)
-		}
-	}
-}
-
 type tableViewCommand struct {
 	ch     rune
 	text   string
@@ -42,7 +28,19 @@ func NewTableView() *TableView {
 }
 
 func (t *TableView) FillTable(columns []string, data [][]string) {
-	tviewFillTable(t.table, columns, data)
+	t.columns = columns
+	t.data = data
+	for i := 0; i < len(columns); i++ {
+		cell := tview.NewTableCell("[yellow]" + columns[i]).SetBackgroundColor(tcell.ColorBlue)
+		cell.SetSelectable(false)
+		t.table.SetCell(0, i, cell)
+		for j := 0; j < len(data); j++ {
+			content := data[j][i]
+			cell := tview.NewTableCell(content)
+			cell.SetMaxWidth(32)
+			t.table.SetCell(j+1, i, cell)
+		}
+	}
 }
 
 func (t *TableView) NewRow() {
@@ -89,7 +87,7 @@ func (t *TableView) Run() {
 	t.table.SetSeparator(tview.Borders.Vertical)
 	t.table.SetFixed(1, 0)
 	t.table.SetSelectable(true, false)
-	tviewFillTable(t.table, t.columns, t.data)
+	t.FillTable(t.columns, t.data)
 	t.table.SetDoneFunc(func(key tcell.Key) {
 		app.Stop()
 	})

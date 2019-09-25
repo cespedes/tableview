@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/gdamore/tcell"
 	"github.com/cespedes/tview"
+	"github.com/gdamore/tcell"
 )
 
 type tableViewCommand struct {
@@ -15,10 +15,11 @@ type tableViewCommand struct {
 }
 
 type TableView struct {
-	columns  []string
-	data     [][]string
-	commands []tableViewCommand
-	table    *tview.Table
+	columns    []string
+	data       [][]string
+	commands   []tableViewCommand
+	table      *tview.Table
+	expansions []int
 }
 
 func NewTableView() *TableView {
@@ -28,8 +29,13 @@ func NewTableView() *TableView {
 }
 
 func (t *TableView) FillTable(columns []string, data [][]string) {
-	t.columns = columns
-	t.data = data
+	t.columns = columns[:]
+	t.data = data[:]
+	if len(t.expansions) < len(columns) {
+		e := t.expansions
+		t.expansions = make([]int, len(columns))
+		copy(t.expansions, e)
+	}
 	for i := 0; i < len(columns); i++ {
 		cell := tview.NewTableCell("[yellow]" + columns[i]).SetBackgroundColor(tcell.ColorBlue)
 		cell.SetSelectable(false)
@@ -38,8 +44,19 @@ func (t *TableView) FillTable(columns []string, data [][]string) {
 			content := data[j][i]
 			cell := tview.NewTableCell(content)
 			cell.SetMaxWidth(32)
+			if t.expansions[i] > 0 {
+				cell.SetExpansion(t.expansions[i])
+			}
 			t.table.SetCell(j+1, i, cell)
 		}
+	}
+}
+
+func (t *TableView) SetExpansion(column int, expansion int) {
+	// TODO Check errors
+	t.expansions[column] = expansion
+	for i := 0; i < len(t.data); i++ {
+		t.table.GetCell(i, column).SetExpansion(expansion)
 	}
 }
 

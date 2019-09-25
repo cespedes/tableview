@@ -32,9 +32,7 @@ func (t *TableView) FillTable(columns []string, data [][]string) {
 	t.columns = columns[:]
 	t.data = data[:]
 	if len(t.expansions) < len(columns) {
-		e := t.expansions
-		t.expansions = make([]int, len(columns))
-		copy(t.expansions, e)
+		t.expansions = append(t.expansions, make([]int, len(columns)-len(t.expansions))...)
 	}
 	for i := 0; i < len(columns); i++ {
 		cell := tview.NewTableCell("[yellow]" + columns[i]).SetBackgroundColor(tcell.ColorBlue)
@@ -50,6 +48,23 @@ func (t *TableView) FillTable(columns []string, data [][]string) {
 			t.table.SetCell(j+1, i, cell)
 		}
 	}
+}
+
+func (t *TableView) SetCell(row int, column int, content string) {
+	// TODO Check column < len(t.column)
+	if row > len(t.data) {
+		t.data = append(t.data, make([][]string, row-len(t.data)+1)...)
+	}
+	if column > len(t.data[row]) {
+		t.data[row] = append(t.data[row], make([]string, column-len(t.data[row]))...)
+	}
+	t.data[row][column] = content
+	cell := tview.NewTableCell(content)
+	cell.SetMaxWidth(32)
+	if t.expansions[column] > 0 {
+		cell.SetExpansion(t.expansions[column])
+	}
+	t.table.SetCell(row+1, column, cell)
 }
 
 func (t *TableView) SetExpansion(column int, expansion int) {

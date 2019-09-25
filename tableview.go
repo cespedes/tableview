@@ -52,11 +52,11 @@ func (t *TableView) FillTable(columns []string, data [][]string) {
 
 func (t *TableView) SetCell(row int, column int, content string) {
 	// TODO Check column < len(t.column)
-	if row > len(t.data) {
+	if row > len(t.data)-1 {
 		t.data = append(t.data, make([][]string, row-len(t.data)+1)...)
 	}
-	if column > len(t.data[row]) {
-		t.data[row] = append(t.data[row], make([]string, column-len(t.data[row]))...)
+	if column > len(t.data[row])-1 {
+		t.data[row] = append(t.data[row], make([]string, column-len(t.data[row])+1)...)
 	}
 	t.data[row][column] = content
 	cell := tview.NewTableCell(content)

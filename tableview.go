@@ -18,6 +18,7 @@ type TableView struct {
 	columns    []string
 	data       [][]string
 	commands   []tableViewCommand
+	app        *tview.Application
 	table      *tview.Table
 	expansions []int
 }
@@ -85,6 +86,14 @@ func (t *TableView) NewCommand(ch rune, text string, action func(row int)) {
 	t.commands = append(t.commands, tableViewCommand{ch, text, action})
 }
 
+func (t *TableView) SetSelectedFunc(action func(row int)) {
+	t.table.SetSelectedFunc(func(row int, col int) {
+		t.app.Suspend(func() {
+			action(row)
+		})
+	})
+}
+
 func (t *TableView) DelRow() {
 }
 
@@ -92,7 +101,7 @@ func (t *TableView) DelColumn() {
 }
 
 func (t *TableView) Run() {
-	app := tview.NewApplication()
+	t.app = tview.NewApplication()
 	text := tview.NewTextView()
 	flex := tview.NewFlex()
 	var lastLine tview.Primitive
@@ -121,14 +130,14 @@ func (t *TableView) Run() {
 	t.table.SetSelectable(true, false)
 	t.FillTable(t.columns, t.data)
 	t.table.SetDoneFunc(func(key tcell.Key) {
-		app.Stop()
+		t.app.Stop()
 	})
 	t.table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyRune:
 			switch event.Rune() {
 			case 'q':
-				app.Stop()
+				t.app.Stop()
 				return nil
 			case '/':
 				row, _ := t.table.GetSelection()
@@ -148,12 +157,12 @@ func (t *TableView) Run() {
 					flex.RemoveItem(lastLine)
 					lastLine = tview.NewTextView().SetText(fmt.Sprintf("Last search: %q from line %d", lastSearch, row))
 					flex.AddItem(lastLine, 1, 0, false)
-					app.SetFocus(t.table)
+					t.app.SetFocus(t.table)
 				})
 				flex.RemoveItem(lastLine)
 				lastLine = search
 				flex.AddItem(lastLine, 1, 0, false)
-				app.SetFocus(search)
+				t.app.SetFocus(search)
 
 			case 'n':
 				row, _ := t.table.GetSelection()
@@ -165,7 +174,7 @@ func (t *TableView) Run() {
 			for _, c := range t.commands {
 				if event.Rune() == c.ch {
 					row, _ := t.table.GetSelection()
-					app.Suspend(func() {
+					t.app.Suspend(func() {
 						c.action(row)
 					})
 				}
@@ -186,8 +195,8 @@ func (t *TableView) Run() {
 	flex.AddItem(text, 1, 0, false)
 	lastLine = tview.NewBox()
 	flex.AddItem(lastLine, 1, 0, false)
-	app.SetRoot(flex, true)
-	if err := app.Run(); err != nil {
+	t.app.SetRoot(flex, true)
+	if err := t.app.Run(); err != nil {
 		panic(err)
 	}
 }

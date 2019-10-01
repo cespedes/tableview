@@ -139,14 +139,34 @@ func (t *TableView) Run() {
 			case 'q':
 				t.app.Stop()
 				return nil
+			/*
+			case '=':
+				size := len(t.data)
+				_, _, wid, hei := t.table.GetInnerRect()
+				sel, _ := t.table.GetSelection()
+				off, _ := t.table.GetOffset()
+				flex.RemoveItem(lastLine)
+				lastLine = tview.NewTextView().SetText(fmt.Sprintf("size=%d wid=%d hei=%d sel=%d off=%d", size, wid, hei, sel, off))
+				flex.AddItem(lastLine, 1, 0, false)
+			*/
 			case '<':
-				row, col := t.table.GetOffset()
-				if row > 0 {
-					t.table.SetOffset(row-1, col)
+				sel, _ := t.table.GetSelection()
+				off, _ := t.table.GetOffset()
+				_, _, _, hei := t.table.GetInnerRect()
+				if off > 0 {
+					if sel - off + 1 == hei {
+						t.table.Select(sel-1, 0)
+					}
+					t.table.SetOffset(off-1, 0)
 				}
 			case '>':
-				row, col := t.table.GetOffset()
-				t.table.SetOffset(row+1, col)
+				sel, _ := t.table.GetSelection()
+				off, _ := t.table.GetOffset()
+				_, _, _, hei := t.table.GetInnerRect()
+				if (sel == off+1) && (off + hei <= len(t.data)) {
+					t.table.Select(sel+1, 0)
+				}
+				t.table.SetOffset(off+1, 0)
 			case '/':
 				row, _ := t.table.GetSelection()
 				row--
@@ -171,7 +191,6 @@ func (t *TableView) Run() {
 				lastLine = search
 				flex.AddItem(lastLine, 1, 0, false)
 				t.app.SetFocus(search)
-
 			case 'n':
 				row, _ := t.table.GetSelection()
 				tviewSearch(row, lastSearch)

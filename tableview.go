@@ -139,6 +139,14 @@ func (t *TableView) Run() {
 			case 'q':
 				t.app.Stop()
 				return nil
+			case '<':
+				row, col := t.table.GetOffset()
+				if row > 0 {
+					t.table.SetOffset(row-1, col)
+				}
+			case '>':
+				row, col := t.table.GetOffset()
+				t.table.SetOffset(row+1, col)
 			case '/':
 				row, _ := t.table.GetSelection()
 				row--

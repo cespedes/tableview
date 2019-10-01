@@ -15,12 +15,14 @@ type tableViewCommand struct {
 }
 
 type TableView struct {
-	columns    []string
-	data       [][]string
-	commands   []tableViewCommand
-	app        *tview.Application
-	table      *tview.Table
-	expansions []int
+	columns      []string
+	data         [][]string
+	filteredData []int
+	commands     []tableViewCommand
+	app          *tview.Application
+	table        *tview.Table
+	expansions   []int
+	filter       string
 }
 
 func NewTableView() *TableView {
@@ -30,17 +32,25 @@ func NewTableView() *TableView {
 }
 
 func (t *TableView) FillTable(columns []string, data [][]string) {
-	t.columns = columns[:]
-	t.data = data[:]
+	t.columns = columns
+	t.data = data
+	t.filteredData = make([]int, len(data))
+	for i := 0; i < len(data); i++ {
+		t.filteredData[i] = i
+	}
 	if len(t.expansions) < len(columns) {
 		t.expansions = append(t.expansions, make([]int, len(columns)-len(t.expansions))...)
 	}
-	for i := 0; i < len(columns); i++ {
-		cell := tview.NewTableCell("[yellow]" + columns[i]).SetBackgroundColor(tcell.ColorBlue)
+	t.fillTable()
+}
+
+func (t *TableView) fillTable() {
+	for i := 0; i < len(t.columns); i++ {
+		cell := tview.NewTableCell("[yellow]" + t.columns[i]).SetBackgroundColor(tcell.ColorBlue)
 		cell.SetSelectable(false)
 		t.table.SetCell(0, i, cell)
-		for j := 0; j < len(data); j++ {
-			content := data[j][i]
+		for j := 0; j < len(t.filteredData); j++ {
+			content := t.data[t.filteredData[j]][i]
 			cell := tview.NewTableCell(content)
 			cell.SetMaxWidth(32)
 			if t.expansions[i] > 0 {
@@ -48,6 +58,9 @@ func (t *TableView) FillTable(columns []string, data [][]string) {
 			}
 			t.table.SetCell(j+1, i, cell)
 		}
+	}
+	for i := t.table.GetRowCount()-1; i > len(t.filteredData); i-- {
+		t.table.RemoveRow(i)
 	}
 }
 
@@ -120,6 +133,21 @@ func (t *TableView) Run() {
 		}
 		return false
 	}
+	tviewFilter := func(text string) bool {
+		t.filteredData = nil
+		text = strings.ToLower(text)
+		for i := 0; i < len(t.data); i++ {
+			for j := 0; j < len(t.columns); j++ {
+				cellContent := strings.ToLower(t.data[i][j])
+				if strings.Contains(cellContent, text) {
+					t.filteredData = append(t.filteredData, i)
+					break
+				}
+			}
+		}
+		t.fillTable()
+		return true
+	}
 
 	// t.table.SetBorder(true)
 	t.table.SetTitle(" LDAP ")
@@ -128,7 +156,7 @@ func (t *TableView) Run() {
 	t.table.SetSeparator(tview.Borders.Vertical)
 	t.table.SetFixed(1, 0)
 	t.table.SetSelectable(true, false)
-	t.FillTable(t.columns, t.data)
+	t.fillTable()
 	t.table.SetDoneFunc(func(key tcell.Key) {
 		t.app.Stop()
 	})
@@ -139,16 +167,14 @@ func (t *TableView) Run() {
 			case 'q':
 				t.app.Stop()
 				return nil
-			/*
 			case '=':
-				size := len(t.data)
+				size := len(t.filteredData)
 				_, _, wid, hei := t.table.GetInnerRect()
 				sel, _ := t.table.GetSelection()
 				off, _ := t.table.GetOffset()
 				flex.RemoveItem(lastLine)
 				lastLine = tview.NewTextView().SetText(fmt.Sprintf("size=%d wid=%d hei=%d sel=%d off=%d", size, wid, hei, sel, off))
 				flex.AddItem(lastLine, 1, 0, false)
-			*/
 			case '<':
 				sel, _ := t.table.GetSelection()
 				off, _ := t.table.GetOffset()
@@ -197,12 +223,37 @@ func (t *TableView) Run() {
 				flex.RemoveItem(lastLine)
 				lastLine = tview.NewTextView().SetText(fmt.Sprintf("Searching again: %q from line %d", lastSearch, row))
 				flex.AddItem(lastLine, 1, 0, false)
+			case 'f':
+				row, _ := t.table.GetSelection()
+				row--
+				line := tview.NewInputField()
+				line.SetLabel("Filter: ")
+				line.SetFieldBackgroundColor((tcell.ColorBlack))
+				line.SetChangedFunc(func(text string) {
+					t.filter = text
+					if tviewFilter(text) {
+						line.SetFieldTextColor(tcell.ColorWhite)
+					} else {
+						line.SetFieldTextColor((tcell.ColorRed))
+					}
+				})
+				line.SetDoneFunc(func(key tcell.Key) {
+					lastSearch = line.GetText()
+					flex.RemoveItem(lastLine)
+					lastLine = tview.NewTextView().SetText(fmt.Sprintf("Filter: %q", t.filter))
+					flex.AddItem(lastLine, 1, 0, false)
+					t.app.SetFocus(t.table)
+				})
+				flex.RemoveItem(lastLine)
+				lastLine = line
+				flex.AddItem(lastLine, 1, 0, false)
+				t.app.SetFocus(line)
 			}
 			for _, c := range t.commands {
 				if event.Rune() == c.ch {
 					row, _ := t.table.GetSelection()
 					t.app.Suspend(func() {
-						c.action(row)
+						c.action(t.filteredData[row-1])
 					})
 				}
 			}
@@ -211,7 +262,7 @@ func (t *TableView) Run() {
 	})
 	text.SetBackgroundColor(tcell.ColorBlue)
 	text.SetDynamicColors(true)
-	innerText := " [yellow]q:quit   /:search   n:next"
+	innerText := " [yellow]q:quit   /:search   n:next  f:filter"
 	for _, c := range t.commands {
 		innerText = fmt.Sprintf("%s   %c:%s", innerText, c.ch, c.text)
 	}

@@ -15,6 +15,7 @@ type tableViewCommand struct {
 	action func(row int)
 }
 
+// TableView holds a description of the table to be displayed
 type TableView struct {
 	app        *tview.Application
 	flex       *tview.Flex
@@ -40,28 +41,28 @@ func NewTableView() *TableView {
 
 // FillTable populates a TableView with the given data
 func (t *TableView) FillTable(columns []string, data [][]string) {
-	if len(columns) != len(t.columns) {
-		t.orderCols = make([]int, len(columns))
-		for i := 0; i < len(columns); i++ {
+	t.columns = columns
+	if len(t.expansions) < len(t.columns) {
+		t.expansions = append(t.expansions, make([]int, len(t.columns)-len(t.expansions))...)
+	}
+	t.data = data
+}
+
+func (t *TableView) fillTable() {
+	if len(t.orderCols) != len(t.columns) {
+		t.orderCols = make([]int, len(t.columns))
+		for i := 0; i < len(t.columns); i++ {
 			t.orderCols[i] = i
 		}
 		t.filter = ""
 	}
-	t.columns = columns
-	if len(data) != len(t.data) {
-		t.orderRows = make([]int, len(data))
-		for i := 0; i < len(data); i++ {
+	if len(t.orderRows) != len(t.data) {
+		t.orderRows = make([]int, len(t.data))
+		for i := 0; i < len(t.data); i++ {
 			t.orderRows[i] = i
 		}
 	}
-	t.data = data
-	if len(t.expansions) < len(columns) {
-		t.expansions = append(t.expansions, make([]int, len(columns)-len(t.expansions))...)
-	}
-	t.fillTable()
-}
 
-func (t *TableView) fillTable() {
 	for i := 0; i < len(t.orderCols); i++ {
 		cell := tview.NewTableCell("[yellow]" + t.columns[t.orderCols[i]]).SetBackgroundColor(tcell.ColorBlue)
 		cell.SetSelectable(false)
@@ -70,9 +71,7 @@ func (t *TableView) fillTable() {
 			content := t.data[t.orderRows[j]][t.orderCols[i]]
 			cell := tview.NewTableCell(content)
 			cell.SetMaxWidth(32)
-			if t.expansions[t.orderCols[i]] > 0 {
-				cell.SetExpansion(t.expansions[t.orderCols[i]])
-			}
+			cell.SetExpansion(t.expansions[t.orderCols[i]])
 			t.table.SetCell(j+1, i, cell)
 		}
 	}
@@ -99,8 +98,16 @@ func (t *TableView) filterData() {
 	t.fillTable()
 }
 
+// SetCell sets the content of a cell in the specified position.
+//
+// row must be >=0; column must be
 func (t *TableView) SetCell(row int, column int, content string) {
-	// TODO Check column < len(t.column)
+	if column >= len(t.columns) {
+		return // TODO show return error
+	}
+	if row < 0 {
+		return // TODO show return error
+	}
 	if row > len(t.data)-1 {
 		t.data = append(t.data, make([][]string, row-len(t.data)+1)...)
 	}
@@ -108,16 +115,16 @@ func (t *TableView) SetCell(row int, column int, content string) {
 		t.data[row] = append(t.data[row], make([]string, column-len(t.data[row])+1)...)
 	}
 	t.data[row][column] = content
-	cell := tview.NewTableCell(content)
-	cell.SetMaxWidth(32)
-	if t.expansions[column] > 0 {
-		cell.SetExpansion(t.expansions[column])
-	}
-	t.table.SetCell(row+1, column, cell)
 }
 
 func (t *TableView) SetExpansion(column int, expansion int) {
-	// TODO Check errors
+	if column < 0 || column >= len(t.columns) {
+		return // TODO Check errors
+	}
+	if len(t.expansions) < len(t.columns) {
+		t.expansions = append(t.expansions, make([]int, len(t.columns)-len(t.expansions))...)
+	}
+
 	t.expansions[column] = expansion
 	for i := 0; i < len(t.data); i++ {
 		t.table.GetCell(i, column).SetExpansion(expansion)
@@ -321,6 +328,7 @@ func (t *TableView) Run() {
 					row, _ := t.table.GetSelection()
 					t.app.Suspend(func() {
 						c.action(t.orderRows[row-1])
+						t.fillTable()
 					})
 				}
 			}

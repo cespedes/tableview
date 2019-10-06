@@ -23,6 +23,7 @@ type TableView struct {
 	columns    []string
 	data       [][]string
 	expansions []int
+	aligns     []int
 	filter     string // active filter.  Used to regenerate orderRows
 	sortBy     int    // column to sort by
 	orderRows  []int  // rows to show, and in which order (generated from filter and sortBy)
@@ -44,6 +45,9 @@ func (t *TableView) FillTable(columns []string, data [][]string) {
 	t.columns = columns
 	if len(t.expansions) < len(t.columns) {
 		t.expansions = append(t.expansions, make([]int, len(t.columns)-len(t.expansions))...)
+	}
+	if len(t.aligns) < len(t.columns) {
+		t.aligns = append(t.aligns, make([]int, len(t.columns)-len(t.aligns))...)
 	}
 	t.data = data
 }
@@ -72,6 +76,7 @@ func (t *TableView) fillTable() {
 			cell := tview.NewTableCell(content)
 			cell.SetMaxWidth(32)
 			cell.SetExpansion(t.expansions[t.orderCols[i]])
+			cell.SetAlign(t.aligns[t.orderCols[i]])
 			t.table.SetCell(j+1, i, cell)
 		}
 	}
@@ -99,8 +104,6 @@ func (t *TableView) filterData() {
 }
 
 // SetCell sets the content of a cell in the specified position.
-//
-// row must be >=0; column must be
 func (t *TableView) SetCell(row int, column int, content string) {
 	if column >= len(t.columns) {
 		return // TODO show return error
@@ -117,6 +120,8 @@ func (t *TableView) SetCell(row int, column int, content string) {
 	t.data[row][column] = content
 }
 
+// SetExpansion sets the value by which the column expands if the available width for the table
+// is more than the table width.
 func (t *TableView) SetExpansion(column int, expansion int) {
 	if column < 0 || column >= len(t.columns) {
 		return // TODO Check errors
@@ -128,6 +133,28 @@ func (t *TableView) SetExpansion(column int, expansion int) {
 	t.expansions[column] = expansion
 	for i := 0; i < len(t.data); i++ {
 		t.table.GetCell(i, column).SetExpansion(expansion)
+	}
+}
+
+// Text alignment in each column.
+const (
+	AlignLeft   = tview.AlignLeft
+	AlignCenter = tview.AlignCenter
+	AlignRight  = tview.AlignRight
+)
+
+// SetAlign sets the alignment in this column.  This must be either AlignLeft, AlignCenter, or AlignRight.
+func (t *TableView) SetAlign(column int, align int) {
+	if column < 0 || column >= len(t.columns) {
+		return // TODO Check errors
+	}
+	if len(t.aligns) < len(t.columns) {
+		t.aligns = append(t.aligns, make([]int, len(t.columns)-len(t.aligns))...)
+	}
+
+	t.aligns[column] = align
+	for i := 0; i < len(t.data); i++ {
+		t.table.GetCell(i, column).SetAlign(align)
 	}
 }
 

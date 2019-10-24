@@ -1,3 +1,7 @@
+// Package tableview provides a way to display a table widget in a
+// terminal, using all the width and height and being able to scroll
+// vertically or horizontally, search, filter, sort and adding additional
+// funcionality
 package tableview
 
 import (
@@ -120,8 +124,8 @@ func (t *TableView) SetCell(row int, column int, content string) {
 	t.data[row][column] = content
 }
 
-// SetExpansion sets the value by which the column expands if the available width for the table
-// is more than the table width.
+// SetExpansion sets the value by which the column expands if the
+// available width for the table is more than the table width.
 func (t *TableView) SetExpansion(column int, expansion int) {
 	if column < 0 || column >= len(t.columns) {
 		return // TODO Check errors
@@ -143,7 +147,8 @@ const (
 	AlignRight  = tview.AlignRight
 )
 
-// SetAlign sets the alignment in this column.  This must be either AlignLeft, AlignCenter, or AlignRight.
+// SetAlign sets the alignment in this column.
+// This must be either AlignLeft, AlignCenter, or AlignRight.
 func (t *TableView) SetAlign(column int, align int) {
 	if column < 0 || column >= len(t.columns) {
 		return // TODO Check errors
@@ -166,10 +171,14 @@ func (t *TableView) NewColumn() {
 }
 */
 
+// NewCommand sets the function to be executed when a given key is
+// pressed.  The selected row is passed to the function as an argument.
 func (t *TableView) NewCommand(ch rune, text string, action func(row int)) {
 	t.commands = append(t.commands, tableViewCommand{ch, text, action})
 }
 
+// SetSelectedFunc sets the function to be executed when the user
+// presses ENTER.  The selecred row is passed to the function as an argument.
 func (t *TableView) SetSelectedFunc(action func(row int)) {
 	t.table.SetSelectedFunc(func(row int, col int) {
 		t.app.Suspend(func() {
@@ -210,6 +219,8 @@ func (t *TableView) search(startRow int, text string) bool {
 	return false
 }
 
+// Run draws the table and starts a loop, waiting for keystrokes
+// and redrawing the screen.  It exits when ^C or "q" is pressed.
 func (t *TableView) Run() {
 	t.app = tview.NewApplication()
 	text := tview.NewTextView()

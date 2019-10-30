@@ -53,24 +53,23 @@ func (t *TableView) FillTable(columns []string, data [][]string) {
 	if len(t.aligns) < len(t.columns) {
 		t.aligns = append(t.aligns, make([]int, len(t.columns)-len(t.aligns))...)
 	}
-	t.data = data
-}
-
-func (t *TableView) fillTable() {
 	if len(t.orderCols) != len(t.columns) {
 		t.orderCols = make([]int, len(t.columns))
 		for i := 0; i < len(t.columns); i++ {
 			t.orderCols[i] = i
 		}
-		t.filter = ""
 	}
-	if len(t.orderRows) != len(t.data) {
-		t.orderRows = make([]int, len(t.data))
-		for i := 0; i < len(t.data); i++ {
+	if len(data) != len(t.data) {
+		t.orderRows = make([]int, len(data))
+		for i := 0; i < len(data); i++ {
 			t.orderRows[i] = i
 		}
+		t.filter = ""
 	}
+	t.data = data
+}
 
+func (t *TableView) fillTable() {
 	for i := 0; i < len(t.orderCols); i++ {
 		cell := tview.NewTableCell("[yellow]" + t.columns[t.orderCols[i]]).SetBackgroundColor(tcell.ColorBlue)
 		cell.SetSelectable(false)
@@ -198,7 +197,9 @@ func (t *TableView) DelColumn() {
 func (t *TableView) updateLastLine() {
 	t.flex.RemoveItem(t.lastLine)
 	if t.filter != "" {
-		t.lastLine = tview.NewTextView().SetText(fmt.Sprintf("Filter: %q", t.filter))
+		text := fmt.Sprintf("Filter: %q (%d/%d lines)", t.filter, len(t.orderRows), len(t.data))
+
+		t.lastLine = tview.NewTextView().SetText(text)
 	} else {
 		t.lastLine = tview.NewBox()
 	}
@@ -353,6 +354,7 @@ func (t *TableView) Run() {
 				})
 				line.SetDoneFunc(func(key tcell.Key) {
 					t.filter = line.GetText()
+					t.filterData()
 					t.updateLastLine()
 					t.app.SetFocus(t.table)
 				})

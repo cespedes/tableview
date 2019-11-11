@@ -115,6 +115,10 @@ func (t *TableView) SetCell(row int, column int, content string) {
 		return // TODO show return error
 	}
 	if row > len(t.data)-1 {
+		t.orderRows = append(t.orderRows, make([]int, row-len(t.data)+1)...)
+		for i := len(t.data); i < row+1; i++ {
+			t.orderRows[i] = i
+		}
 		t.data = append(t.data, make([][]string, row-len(t.data)+1)...)
 	}
 	if column > len(t.data[row])-1 {

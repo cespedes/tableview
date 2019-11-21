@@ -9,7 +9,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/cespedes/tview"
+	"github.com/rivo/tview"
 	"github.com/gdamore/tcell"
 )
 
@@ -240,7 +240,7 @@ func (t *TableView) Run() {
 	}
 	columnsMenu := " [yellow]q:quit   c:back   <:left   >:right   s:sort"
 	text.SetText(defaultMenu)
-	t.table.SetFixedColumnsWidth(true)
+	t.table.SetEvaluateAllRows(true)
 	t.table.SetSeparator(tview.Borders.Vertical)
 	t.table.SetFixed(1, 0)
 	t.table.SetSelectable(true, false)

@@ -9,8 +9,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/rivo/tview"
 	"github.com/gdamore/tcell"
+	"github.com/rivo/tview"
 )
 
 type tableViewCommand struct {
@@ -19,8 +19,9 @@ type tableViewCommand struct {
 	action func(row int)
 }
 
-// TableView holds a description of the table to be displayed
+// TableView holds a description of one table to be displayed
 type TableView struct {
+	name       string // name of this table, to be able to refer to it
 	app        *tview.Application
 	flex       *tview.Flex
 	table      *tview.Table
@@ -37,11 +38,42 @@ type TableView struct {
 	lastLine   tview.Primitive
 }
 
+type Application struct {
+	app    *tview.Application
+	pages  *tview.Pages
+	tables []*TableView
+}
+
+func (a *Application) Run() {
+	a.app = tview.NewApplication()
+	a.pages = tview.NewPages()
+	for i := range a.tables {
+		a.pages.AddPage(a.tables[i].name, a.tables[i].flex, false, i == 0)
+	}
+}
+
+func (a *Application) NewTable(name string) *TableView {
+	t := NewTableView()
+	t.name = name
+	a.tables = append(a.tables, t)
+	return t
+}
+
 // NewTableView returns an empty TableView
 func NewTableView() *TableView {
 	t := new(TableView)
 	t.table = tview.NewTable()
+	t.table.SetEvaluateAllRows(true)
+	t.table.SetSeparator(tview.Borders.Vertical)
+	t.table.SetFixed(1, 0)
+	t.table.SetSelectable(true, false)
+	t.flex = tview.NewFlex()
 	return t
+}
+
+func NewApplication() *Application {
+	a := new(Application)
+	return a
 }
 
 // FillTable populates a TableView with the given data
@@ -229,7 +261,6 @@ func (t *TableView) search(startRow int, text string) bool {
 func (t *TableView) Run() {
 	t.app = tview.NewApplication()
 	text := tview.NewTextView()
-	t.flex = tview.NewFlex()
 	var lastSearch string
 
 	text.SetBackgroundColor(tcell.ColorBlue)
@@ -240,10 +271,6 @@ func (t *TableView) Run() {
 	}
 	columnsMenu := " [yellow]q:quit   c:back   <:left   >:right   s:sort"
 	text.SetText(defaultMenu)
-	t.table.SetEvaluateAllRows(true)
-	t.table.SetSeparator(tview.Borders.Vertical)
-	t.table.SetFixed(1, 0)
-	t.table.SetSelectable(true, false)
 	t.fillTable()
 	t.table.SetDoneFunc(func(key tcell.Key) {
 		t.app.Stop()

@@ -10,14 +10,15 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/gdamore/tcell"
+	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
 type tableViewCommand struct {
-	ch     rune
-	text   string
-	action func(row int)
+	ch      rune
+	text    string
+	suspend bool
+	action  func(row int)
 }
 
 // TableView holds a description of one table to be displayed
@@ -212,10 +213,15 @@ func (a *Application) NewTable() *TableView {
 			for _, c := range t.commands {
 				if event.Rune() == c.ch {
 					row, _ := t.table.GetSelection()
-					t.app.app.Suspend(func() {
+					if c.suspend {
+						t.app.app.Suspend(func() {
+							c.action(t.orderRows[row-1])
+							t.fillTable()
+						})
+					} else {
 						c.action(t.orderRows[row-1])
 						t.fillTable()
-					})
+					}
 				}
 			}
 		}
@@ -377,17 +383,23 @@ func (t *TableView) NewColumn() {
 
 // NewCommand sets the function to be executed when a given key is
 // pressed.  The selected row is passed to the function as an argument.
-func (t *TableView) NewCommand(ch rune, text string, action func(row int)) {
-	t.commands = append(t.commands, tableViewCommand{ch, text, action})
+func (t *TableView) NewCommand(ch rune, text string, suspend bool, action func(row int)) {
+	t.commands = append(t.commands, tableViewCommand{ch, text, suspend, action})
 }
 
 // SetSelectedFunc sets the function to be executed when the user
 // presses ENTER.  The selecred row is passed to the function as an argument.
-func (t *TableView) SetSelectedFunc(action func(row int)) {
+func (t *TableView) SetSelectedFunc(suspend bool, action func(row int)) {
 	t.table.SetSelectedFunc(func(row int, col int) {
-		t.app.app.Suspend(func() {
+		if suspend {
+			t.app.app.Suspend(func() {
+				action(row)
+				t.fillTable()
+			})
+		} else {
 			action(row)
-		})
+			t.fillTable()
+		}
 	})
 }
 

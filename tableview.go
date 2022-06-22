@@ -15,10 +15,9 @@ import (
 )
 
 type tableViewCommand struct {
-	ch      rune
-	text    string
-	suspend bool
-	action  func(row int)
+	ch     rune
+	text   string
+	action func(row int)
 }
 
 // TableView holds a description of one table to be displayed
@@ -81,18 +80,16 @@ func (a *Application) NewTable() *TableView {
 
 	var lastSearch string
 
-	defaultMenu := " [yellow]q:quit   /:search   n:next   f:filter   c:columns"
-	for _, c := range t.commands {
-		defaultMenu = fmt.Sprintf("%s   %c:%s", defaultMenu, c.ch, c.text)
-	}
-	columnsMenu := " [yellow]q:quit   c:back   <:left   >:right   s:sort"
-	t.legend.SetText(defaultMenu)
-	t.table.SetDoneFunc(func(key tcell.Key) {
-		t.app.app.Stop()
-	})
+	t.updateLegend()
+	//	t.table.SetDoneFunc(func(key tcell.Key) {
+	//		t.app.app.Stop()
+	//	})
 
 	t.table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
+		case tcell.KeyESC:
+			t.app.app.Stop()
+			return nil
 		case tcell.KeyRune:
 			if t.selectCols {
 				switch event.Rune() {
@@ -101,7 +98,7 @@ func (a *Application) NewTable() *TableView {
 					return nil
 				case 'c':
 					t.selectCols = false
-					t.legend.SetText(defaultMenu)
+					t.updateLegend()
 					t.table.SetSelectable(true, false)
 				case '<':
 					row, col := t.table.GetSelection()
@@ -129,11 +126,12 @@ func (a *Application) NewTable() *TableView {
 				return event
 			}
 			switch event.Rune() {
-			case 'q':
+			case 'q', rune(tcell.KeyESC):
 				t.app.app.Stop()
 				return nil
 			case 'c':
 				t.selectCols = true
+				columnsMenu := " [yellow]q:quit   c:back   <:left   >:right   s:sort"
 				t.legend.SetText(columnsMenu)
 				t.table.SetSelectable(false, true)
 			case '=':
@@ -213,15 +211,8 @@ func (a *Application) NewTable() *TableView {
 			for _, c := range t.commands {
 				if event.Rune() == c.ch {
 					row, _ := t.table.GetSelection()
-					if c.suspend {
-						t.app.app.Suspend(func() {
-							c.action(t.orderRows[row-1])
-							t.fillTable()
-						})
-					} else {
-						c.action(t.orderRows[row-1])
-						t.fillTable()
-					}
+					c.action(t.orderRows[row-1])
+					t.fillTable()
 				}
 			}
 		}
@@ -274,6 +265,16 @@ func (t *TableView) FillTable(columns []string, data [][]string) {
 		t.filter = ""
 	}
 	t.data = data
+}
+
+func (t *TableView) updateLegend() {
+	defaultMenu := " [yellow]q:quit   /:search   n:next   f:filter   c:columns"
+	for _, c := range t.commands {
+		if c.text != "" {
+			defaultMenu = fmt.Sprintf("%s   %c:%s", defaultMenu, c.ch, c.text)
+		}
+	}
+	t.legend.SetText(defaultMenu)
 }
 
 func (t *TableView) fillTable() {
@@ -383,24 +384,29 @@ func (t *TableView) NewColumn() {
 
 // NewCommand sets the function to be executed when a given key is
 // pressed.  The selected row is passed to the function as an argument.
-func (t *TableView) NewCommand(ch rune, text string, suspend bool, action func(row int)) {
-	t.commands = append(t.commands, tableViewCommand{ch, text, suspend, action})
+func (t *TableView) NewCommand(ch rune, text string, action func(row int)) {
+	t.commands = append(t.commands, tableViewCommand{ch, text, action})
+	if !t.selectCols {
+		t.updateLegend()
+	}
 }
 
 // SetSelectedFunc sets the function to be executed when the user
 // presses ENTER.  The selecred row is passed to the function as an argument.
-func (t *TableView) SetSelectedFunc(suspend bool, action func(row int)) {
+func (t *TableView) SetSelectedFunc(action func(row int)) {
 	t.table.SetSelectedFunc(func(row int, col int) {
-		if suspend {
-			t.app.app.Suspend(func() {
-				action(row)
-				t.fillTable()
-			})
-		} else {
-			action(row)
-			t.fillTable()
-		}
+		action(row - 1)
+		t.fillTable()
 	})
+}
+
+// Suspend temporarily suspends the application
+// by exiting terminal UI mode
+// and invoking the provided function "f".
+// When "f" returns, terminal UI mode is entered again
+// and the application resumes.
+func (t *TableView) Suspend(f func()) {
+	t.app.app.Suspend(f)
 }
 
 /*
@@ -435,6 +441,12 @@ func (t *TableView) search(startRow int, text string) bool {
 		}
 	}
 	return false
+}
+
+// JoinRows marks several rows to be always together, and with the same visibility.
+// This affects the behaviour of t.search(), t.filterData() and t.sort()
+func (t *TableView) JoinRows(startRow int, endRow int) error {
+	return fmt.Errorf("not implemented")
 }
 
 // Run draws the table and starts a loop, waiting for keystrokes

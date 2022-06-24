@@ -22,22 +22,23 @@ type tableViewCommand struct {
 
 // TableView holds a description of one table to be displayed
 type TableView struct {
-	app        *Application
-	ID         int // index of this table in parent Application's "tables"
-	flex       *tview.Flex
-	table      *tview.Table
-	columns    []string
-	data       [][]string
-	expansions []int
-	aligns     []int
-	filter     string // active filter.  Used to regenerate orderRows
-	sortBy     int    // column to sort by
-	orderRows  []int  // rows to show, and in which order (generated from filter and sortBy)
-	orderCols  []int  // columns to show, and in which order
-	selectCols bool   // selecting columns instead of rows
-	commands   []tableViewCommand
-	legend     *tview.TextView
-	lastLine   tview.Primitive
+	app          *Application
+	ID           int // index of this table in parent Application's "tables"
+	flex         *tview.Flex
+	table        *tview.Table
+	columns      []string
+	data         [][]string
+	expansions   []int
+	aligns       []int
+	filter       string // active filter.  Used to regenerate orderRows
+	sortBy       int    // column to sort by
+	orderRows    []int  // rows to show, and in which order (generated from filter and sortBy)
+	orderCols    []int  // columns to show, and in which order
+	selectCols   bool   // selecting columns instead of rows
+	commands     []tableViewCommand
+	legend       *tview.TextView
+	lastLine     tview.Primitive
+	inputCapture func(k tcell.Key, r rune, row int) bool
 }
 
 type Application struct {
@@ -86,6 +87,13 @@ func (a *Application) NewTable() *TableView {
 	//	})
 
 	t.table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if t.inputCapture != nil && !t.selectCols {
+			row, _ := t.table.GetSelection()
+			res := t.inputCapture(event.Key(), event.Rune(), row-1)
+			if !res {
+				return nil
+			}
+		}
 		switch event.Key() {
 		case tcell.KeyESC:
 			t.app.app.Stop()
@@ -265,6 +273,7 @@ func (t *TableView) FillTable(columns []string, data [][]string) {
 		t.filter = ""
 	}
 	t.data = data
+	t.fillTable()
 }
 
 func (t *TableView) updateLegend() {
@@ -291,10 +300,10 @@ func (t *TableView) fillTable() {
 			t.table.SetCell(j+1, i, cell)
 		}
 	}
-	for i := t.table.GetColumnCount() - 1; i > len(t.orderCols); i-- {
+	for i := t.table.GetColumnCount() - 1; i >= len(t.orderCols); i-- {
 		t.table.RemoveColumn(i)
 	}
-	for i := t.table.GetRowCount() - 1; i > len(t.orderRows); i-- {
+	for i := t.table.GetRowCount(); i > len(t.orderRows); i-- {
 		t.table.RemoveRow(i)
 	}
 }
@@ -396,8 +405,15 @@ func (t *TableView) NewCommand(ch rune, text string, action func(row int)) {
 func (t *TableView) SetSelectedFunc(action func(row int)) {
 	t.table.SetSelectedFunc(func(row int, col int) {
 		action(row - 1)
-		t.fillTable()
 	})
+}
+
+type Key = tcell.Key
+
+// SetInputCapture sets a function to be executed when the user
+// presses any key (and not in column mode).
+func (t *TableView) SetInputCapture(f func(k Key, r rune, row int) bool) {
+	t.inputCapture = f
 }
 
 // Suspend temporarily suspends the application

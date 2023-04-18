@@ -14,10 +14,22 @@ import (
 	"github.com/rivo/tview"
 )
 
-type tableViewCommand struct {
-	ch     rune
-	text   string
-	action func(row int)
+type Command struct {
+	table   *TableView
+	ch      rune
+	text    string
+	action  func(row int)
+	enabled bool
+}
+
+func (c *Command) Disable() {
+	c.enabled = false
+	c.table.updateLegend()
+}
+
+func (c *Command) Enable() {
+	c.enabled = true
+	c.table.updateLegend()
 }
 
 // TableView holds a description of one table to be displayed
@@ -35,7 +47,7 @@ type TableView struct {
 	orderRows    []int  // rows to show, and in which order (generated from filter and sortBy)
 	orderCols    []int  // columns to show, and in which order
 	selectCols   bool   // selecting columns instead of rows
-	commands     []tableViewCommand
+	commands     []*Command
 	legend       *tview.TextView
 	lastLine     tview.Primitive
 	inputCapture func(k tcell.Key, r rune, row int) bool
@@ -89,7 +101,11 @@ func (a *Application) NewTable() *TableView {
 	t.table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if t.inputCapture != nil && !t.selectCols {
 			row, _ := t.table.GetSelection()
-			res := t.inputCapture(event.Key(), event.Rune(), row-1)
+			row--
+			if row < len(t.orderRows) {
+				row = t.orderRows[row]
+			}
+			res := t.inputCapture(event.Key(), event.Rune(), row)
 			if !res {
 				return nil
 			}
@@ -217,7 +233,7 @@ func (a *Application) NewTable() *TableView {
 				t.app.app.SetFocus(line)
 			}
 			for _, c := range t.commands {
-				if event.Rune() == c.ch {
+				if c.enabled && event.Rune() == c.ch {
 					row, _ := t.table.GetSelection()
 					c.action(t.orderRows[row-1])
 					t.fillTable()
@@ -274,12 +290,14 @@ func (t *TableView) FillTable(columns []string, data [][]string) {
 	}
 	t.data = data
 	t.fillTable()
+	t.table.Select(1, 0)
+	t.table.SetOffset(0, 0)
 }
 
 func (t *TableView) updateLegend() {
 	defaultMenu := " [yellow]q:quit   /:search   n:next   f:filter   c:columns"
 	for _, c := range t.commands {
-		if c.text != "" {
+		if c.enabled && c.text != "" {
 			defaultMenu = fmt.Sprintf("%s   %c:%s", defaultMenu, c.ch, c.text)
 		}
 	}
@@ -393,11 +411,18 @@ func (t *TableView) NewColumn() {
 
 // NewCommand sets the function to be executed when a given key is
 // pressed.  The selected row is passed to the function as an argument.
-func (t *TableView) NewCommand(ch rune, text string, action func(row int)) {
-	t.commands = append(t.commands, tableViewCommand{ch, text, action})
+func (t *TableView) NewCommand(ch rune, text string, action func(row int)) *Command {
+	command := Command{}
+	command.table = t
+	command.ch = ch
+	command.text = text
+	command.action = action
+	command.enabled = true
+	t.commands = append(t.commands, &command)
 	if !t.selectCols {
 		t.updateLegend()
 	}
+	return &command
 }
 
 // SetSelectedFunc sets the function to be executed when the user

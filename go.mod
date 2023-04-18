@@ -3,8 +3,9 @@ module github.com/cespedes/tableview
 go 1.13
 
 require (
-	github.com/gdamore/tcell/v2 v2.5.1
-	github.com/rivo/tview v0.0.0-20220610163003-691f46d6f500
-	golang.org/x/sys v0.0.0-20220622161953-175b2fd9d664 // indirect
-	golang.org/x/term v0.0.0-20220526004731-065cf7ba2467 // indirect
+	github.com/gdamore/tcell/v2 v2.6.0
+	github.com/rivo/tview v0.0.0-20230406072732-e22ce9588bb4
+	github.com/rivo/uniseg v0.4.4 // indirect
+	golang.org/x/term v0.7.0 // indirect
+	golang.org/x/text v0.9.0 // indirect
 )
